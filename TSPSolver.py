@@ -157,36 +157,36 @@ class TSPSolver:
         heap = []
         heapq.heappush(heap, (initialPriority, firstSolution))
 
-        while startTime - time.time() < time_allowance and len(heap) != 0:
-            #do an iteration
-            ignore, toExpand = heapq.heappop(heap)
-            if toExpand.lowerBound > bestCost:
-                pruned +=1
-                continue
-
-
-            newSolutions = expand(toExpand)
-            total += len(newSolutions)
-            for solution in newSolutions:
-                if len(solution.tour) == numCities and solution.lowerBound < bestCost:
-                    bestCost, bestTour = solution.lowerBound, solution.tour
-                    solutions +=1
+        while (time.time() - startTime  ) < time_allowance and len(heap) != 0:
+            for _ in range(100):
+                if len(heap) == 0:
+                    break
+                # do an iteration
+                ignore, toExpand = heapq.heappop(heap)
+                if toExpand.lowerBound > bestCost:
+                    pruned += 1
                     continue
-                if len(solution.tour) == numCities and solution.lowerBound > bestCost:
-                    continue
-                if solution.lowerBound > bestCost:
-                    pruned +=1
-                else:
-                    heapq.heappush(heap, (getPriority(solution) + random.random(),solution))
-                    if(len(heap) > max):
-                        max = len(heap)
+
+                newSolutions = expand(toExpand)
+                total += len(newSolutions)
+                pruned += numCities - len(newSolutions)
+                for solution in newSolutions:
+                    if len(solution.tour) == numCities and solution.lowerBound < bestCost:
+                        bestCost, bestTour = solution.lowerBound, solution.tour
+                        solutions += 1
+                        continue
+                    if len(solution.tour) == numCities and solution.lowerBound > bestCost:
+                        continue
+                    if solution.lowerBound > bestCost:
+                        pruned += 1
+                    else:
+                        heapq.heappush(heap, (getPriority(solution) + random.random(), solution))
+                        if (len(heap) > max):
+                            max = len(heap)
 
 
 
-        # solution has a partial path, minimum bound,
 
-
-        ## ---return results
 
         citySolution = []
         for i in range(len(bestTour)):
@@ -196,7 +196,7 @@ class TSPSolver:
         results = {}
         results['cost'] = bestCost
         results['time'] = end_time - startTime
-        results['count'] = 1
+        results['count'] = solutions
         results['soln'] = TSPSolution(citySolution)
         results['max'] = max
         results['total'] = total
@@ -279,14 +279,16 @@ def expand(solution):
     lowerBound = solution.lowerBound
 
     numCities = len(costMatrix)
-    newSolutions = [None for _ in range(numCities)]
+    newSolutions = []
     for i in range(numCities):
         base = lowerBound + costMatrix[currentCity,i]
+        if base == np.inf:
+            continue
         unFilteredCost = createAndVisit(costMatrix,currentCity,i)
         newCost, newLowerBound = reduce(unFilteredCost,base)
         newTour = currentTour + [i]
         currNewSolution = BranchSolution(newCost,newLowerBound,newTour)
-        newSolutions[i] = currNewSolution
+        newSolutions.append(currNewSolution)
 
     return newSolutions
 
@@ -316,7 +318,7 @@ def reduce(costs, initialLowerBound): # return new costs, new lower bound
 
 def getPriority(solution):
     numVisited = len(solution.tour)
-    discount = (.8 ** numVisited)
+    discount = (.8 ** numVisited) #adjust discount rate here
     return solution.lowerBound * discount
 
 class BranchSolution:
